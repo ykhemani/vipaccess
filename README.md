@@ -5,6 +5,7 @@
 It expects you to have used Symantec VIP Access to have created the keychain that has the token for generating one time passwords.
 
 This script also requires `oathtool` which may be installed via brew:
+
     brew install oath-toolkit
 
 This script is based on the the Expect script written by p120ph37 found at https://gist.github.com/p120ph37/8213727.
