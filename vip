@@ -1,0 +1,98 @@
+#!/bin/bash
+
+################################################################################
+# 
+# Written by https://github.com/ykhemani
+#
+# based on VIPAccess.exp script from https://gist.github.com/p120ph37/8213727
+#
+# bash script to replace Symantec VIP Access GUI app used to obtain one time password.
+# This bash script runs faster than the aforementioned expect script.
+#
+# Echoes and copies one time password to copy/paste buffer.
+#
+# Requires:
+#     Keychain creaed by Symantec VIP Access Tool
+#     oathtool - install by running:
+#         brew install oath-toolkit
+#
+################################################################################
+
+usage()
+{
+    echo "USAGE: $0 [-v] [-h]"
+    echo ""
+    echo "    Command line replacement for the Symantec VIP Access GUI app."
+    echo "    Echoes and copies to the copy/paste buffer the one time password"
+    echo "    that the Symantec VIP Access GUI app would provide."
+    exit 1
+}
+
+while getopts "hv" opt; do
+    case ${opt} in
+        h)
+            usage
+            ;;
+        v)
+            VERBOSE=true
+            ;;
+        *)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+AES_KEY=D0D0D0E0D0D0DFDFDF2C34323937D7AE
+
+SERIAL_NUMBER=$(ioreg -c IOPlatformExpertDevice -d 2 | awk -F\" '/IOPlatformSerialNumber/{print $(NF-1)}')
+if [ "${VERBOSE}" = true ];
+then
+    echo "SERIAL_NUMBER is $SERIAL_NUMBER"
+fi
+
+KEYCHAIN=/Users/${USER}/Library/Keychains/VIPAccess.keychain
+if [ "${VERBOSE}" = true ];
+then
+    echo "KEYCHAIN is $KEYCHAIN"
+fi
+
+KEYCHAIN_PASSWORD=${SERIAL_NUMBER}SymantecVIPAccess${USER}
+
+security unlock-keychain -p ${KEYCHAIN_PASSWORD} ${KEYCHAIN}
+
+ID_CRYPT=$(security find-generic-password -gl CredentialStore ${KEYCHAIN} 2>&1 | egrep 'acct"<blob>' | awk -F\<blob\>= '{print $2}' | awk -F\" '{print $2}')
+if [ "${VERBOSE}" = true ];
+then
+    echo "ID_CRYPT is $ID_CRYPT"
+fi
+
+KEY_CRYPT=$(security find-generic-password -gl CredentialStore ${KEYCHAIN} 2>&1 | grep password: | awk '{print $2}' | awk -F\" '{print $2}')
+if [ "${VERBOSE}" = true ];
+then
+    echo "KEY_CRYPT is $KEY_CRYPT"
+fi
+
+security lock-keychain ${KEYCHAIN}
+
+ID_PLAIN=$(openssl enc -aes-128-cbc -d -K ${AES_KEY} -iv 0 -a <<< ${ID_CRYPT} | sed -e 's#Symantec$##')
+if [ "${VERBOSE}" = true ];
+then
+    echo "ID_PLAIN is $ID_PLAIN"
+fi
+
+KEY_PLAIN=$(openssl enc -aes-128-cbc -d -K ${AES_KEY} -iv 0 -a <<< ${KEY_CRYPT} | xxd -p)
+if [ "${VERBOSE}" = true ];
+then
+    echo "KEY_PLAIN is ${KEY_PLAIN}"
+fi
+
+OTP=$(oathtool --totp ${KEY_PLAIN})
+if [ "${VERBOSE}" = true ];
+then
+    echo "OTP is ${OTP}"
+fi
+
+echo ${OTP} | tr -d \\n | pbcopy
+echo  $(pbpaste)
+
