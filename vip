@@ -22,10 +22,21 @@ usage()
 {
     echo "USAGE: $0 [-v] [-h]"
     echo ""
+    echo "    -v is the verbose flag and prints information as the script runs."
+    echo "    -h is the help flag and prints this message."
+    echo ""
     echo "    Command line replacement for the Symantec VIP Access GUI app."
     echo "    Echoes and copies to the copy/paste buffer the one time password"
     echo "    that the Symantec VIP Access GUI app would provide."
     exit 1
+}
+
+verbose()
+{
+	if [ "${VERBOSE}" = true ];
+	then
+	    echo "    $1"
+	fi
 }
 
 while getopts "hv" opt; do
@@ -46,52 +57,32 @@ shift $((OPTIND-1))
 AES_KEY=D0D0D0E0D0D0DFDFDF2C34323937D7AE
 
 SERIAL_NUMBER=$(ioreg -c IOPlatformExpertDevice -d 2 | awk -F\" '/IOPlatformSerialNumber/{print $(NF-1)}')
-if [ "${VERBOSE}" = true ];
-then
-    echo "SERIAL_NUMBER is $SERIAL_NUMBER"
-fi
+verbose "SERIAL_NUMBER is ${SERIAL_NUMBER}"
 
 KEYCHAIN=/Users/${USER}/Library/Keychains/VIPAccess.keychain
-if [ "${VERBOSE}" = true ];
-then
-    echo "KEYCHAIN is $KEYCHAIN"
-fi
+verbose "KEYCHAIN is ${KEYCHAIN}"
 
 KEYCHAIN_PASSWORD=${SERIAL_NUMBER}SymantecVIPAccess${USER}
 
 security unlock-keychain -p ${KEYCHAIN_PASSWORD} ${KEYCHAIN}
 
 ID_CRYPT=$(security find-generic-password -gl CredentialStore ${KEYCHAIN} 2>&1 | egrep 'acct"<blob>' | awk -F\<blob\>= '{print $2}' | awk -F\" '{print $2}')
-if [ "${VERBOSE}" = true ];
-then
-    echo "ID_CRYPT is $ID_CRYPT"
-fi
+verbose "ID_CRYPT is $ID_CRYPT"
 
 KEY_CRYPT=$(security find-generic-password -gl CredentialStore ${KEYCHAIN} 2>&1 | grep password: | awk '{print $2}' | awk -F\" '{print $2}')
-if [ "${VERBOSE}" = true ];
-then
-    echo "KEY_CRYPT is $KEY_CRYPT"
-fi
+verbose "KEY_CRYPT is $KEY_CRYPT"
 
 security lock-keychain ${KEYCHAIN}
 
 ID_PLAIN=$(openssl enc -aes-128-cbc -d -K ${AES_KEY} -iv 0 -a <<< ${ID_CRYPT} | sed -e 's#Symantec$##')
-if [ "${VERBOSE}" = true ];
-then
-    echo "ID_PLAIN is $ID_PLAIN"
-fi
+verbose "ID_PLAIN is $ID_PLAIN"
 
 KEY_PLAIN=$(openssl enc -aes-128-cbc -d -K ${AES_KEY} -iv 0 -a <<< ${KEY_CRYPT} | xxd -p)
-if [ "${VERBOSE}" = true ];
-then
-    echo "KEY_PLAIN is ${KEY_PLAIN}"
-fi
+verbose "KEY_PLAIN is ${KEY_PLAIN}"
+
 
 OTP=$(oathtool --totp ${KEY_PLAIN})
-if [ "${VERBOSE}" = true ];
-then
-    echo "OTP is ${OTP}"
-fi
+verbose "OTP is ${OTP}"
 
 echo ${OTP} | tr -d \\n | pbcopy
 echo  $(pbpaste)
