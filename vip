@@ -54,6 +54,7 @@ while getopts "hv" opt; do
 done
 shift $((OPTIND-1))
 
+# As documented by p120ph37, he identified the AES_KEY by tracing the crypto library calls that the Symantec VIP Access app makes.
 AES_KEY=D0D0D0E0D0D0DFDFDF2C34323937D7AE
 
 SERIAL_NUMBER=$(ioreg -c IOPlatformExpertDevice -d 2 | awk -F\" '/IOPlatformSerialNumber/{print $(NF-1)}')
