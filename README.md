@@ -8,7 +8,7 @@ This script also requires `oathtool` which may be installed via brew:
 
     brew install oath-toolkit
 
-This script is based on the the Expect script written by p120ph37 found at https://gist.github.com/p120ph37/8213727.
+This script is based on the the Expect script written by **p120ph37** found at https://gist.github.com/p120ph37/8213727.
 
     USAGE: vip [-v] [-h]
 
